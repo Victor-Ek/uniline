@@ -35,7 +35,7 @@ const dropAnimation: DropAnimation = {
   }),
 };
 function App() {
-  const [_songs, setSongs] = useAtom(songsAtom);
+  const [songs, setSongs] = useAtom(songsAtom);
   const { data, refetch } = useQuery({
     queryKey: ["songs"],
     queryFn: fetchPlaylist,
@@ -50,6 +50,7 @@ function App() {
   const [artist, setArtist] = useState<string>("");
   const [songTitle, setSongTitle] = useState<string>("");
   const [canDrag, setCanDrag] = useState<boolean>(false);
+  const [wrongGuess, setWrongGuess] = useState<boolean>(false);
 
   function handleGuess() {
     if (!data?.randomSong) return;
@@ -138,6 +139,23 @@ function App() {
     }
 
     setActiveId(null);
+    let minDate = new Date(-8640000000000000);
+    console.log({ minDate });
+    for (const song of items["results"]) {
+      const songData = songs.find((x) => x.id === song);
+      if (!songData) continue;
+      const songDate = new Date(songData.songLore.track.album.release_date);
+      console.log({ songDate });
+      if (songDate > minDate) {
+        minDate = songDate;
+      } else {
+        console.log("not greater");
+        console.log({ songDate });
+        console.log({ minDate });
+        setWrongGuess(true);
+      }
+      console.log({ minDate });
+    }
   }
   function handleDragOver({ over, active, ...rest }: DragOverEvent) {
     const overId = over?.id;
@@ -206,7 +224,11 @@ function App() {
   }
 
   function handleClick() {
-    refetch();
+    if (wrongGuess) {
+      window.location.reload();
+    } else {
+      refetch();
+    }
   }
 
   useEffect(() => {
@@ -261,7 +283,7 @@ function App() {
       </div>
       <div className="flex flex-col gap-8 items-center justify-center">
         <button type="button" onClick={handleClick}>
-          Get new song
+          {wrongGuess ? "Try again" : "Get new song"}
         </button>
       </div>
       <div className="flex flex-col gap-8">
@@ -270,30 +292,41 @@ function App() {
           onDragOver={handleDragOver}
           onDragStart={handleDragStart}
         >
-          <div className="flex gap-4 justify-center min-h-[340px]">
-            {items["current"].map((item) => (
-              <SortableItem id={item.toString()} key={item.toString()}>
-                <SongCard id={item.toString()} correctGuess={canDrag} />
-              </SortableItem>
-            ))}
-          </div>
-          <div>
-            <h3>Before</h3>
-            <h2>After</h2>
-          </div>
-          <div className="flex gap-4 justify-center mb-32 min-h-[340px]">
-            <SortableContext items={items["results"]}>
-              {items["results"].map((item) => (
-                <SortableItem
-                  id={item.toString()}
-                  disabled
-                  key={item.toString()}
-                >
-                  <SongCard id={item.toString()} correctGuess={canDrag} />
-                </SortableItem>
-              ))}
-            </SortableContext>
-          </div>
+          <SortableContext items={Object.keys(items)}>
+            <SortableItem id={"current"} disabled>
+              <div className="flex gap-4 justify-center min-h-[340px]">
+                {items["current"].map((item) => (
+                  <SortableItem id={item.toString()} key={item.toString()}>
+                    <SongCard id={item.toString()} correctGuess={canDrag} />
+                  </SortableItem>
+                ))}
+              </div>
+            </SortableItem>
+            <div className="flex justify-between mb-8">
+              <h3>Before</h3>
+              {wrongGuess && (
+                <div className="text-red-500">
+                  You guessed wrong, try again!
+                </div>
+              )}
+              <h2>After</h2>
+            </div>
+            <SortableItem id={"results"} disabled>
+              <div className="flex gap-4 justify-center mb-32 min-h-[340px]">
+                <SortableContext items={items["results"]}>
+                  {items["results"].map((item) => (
+                    <SortableItem
+                      id={item.toString()}
+                      disabled
+                      key={item.toString()}
+                    >
+                      <SongCard id={item.toString()} correctGuess={canDrag} />
+                    </SortableItem>
+                  ))}
+                </SortableContext>
+              </div>
+            </SortableItem>
+          </SortableContext>
           <DragOverlay dropAnimation={dropAnimation}>
             {activeId ? (
               <SongCard id={activeId.toString()} correctGuess={canDrag} />
